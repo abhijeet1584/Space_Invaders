@@ -28,6 +28,7 @@ YELLO_LASER = pygame.image.load(os.path.join("assets", "pixel_laser_yellow.png")
 BG = pygame.transform.scale((pygame.image.load("assets/background-black.png")), (WIDTH, HEIGHT))
 
 class Ship:
+    COOLDOWN = 30 # half a second as 60 FPS is the range
     def __init__(self, x, y, health=100):
         self.x = x
         self.y = y
@@ -39,10 +40,34 @@ class Ship:
         
     def draw(self, window):
         window.blit(self.ship_img, (self.x, self.y))
+        for laser in self.lasers:
+            laser.draw(window)
+            
+    def move_laser(self, vel, obj):
+        self.cooldown() # incrementing the cool_down_counter
+        for laser in self.lasers:
+            laser.move(vel)
+            # vel is the velocity of the laser, eiter positiv or negative
+            if laser.off_screen(HEIGHT):
+                self.lasers.remove(laser) # destroy the laser if laser.x is greater than the height of the window
+                
+            elif laser.collision(obj):
+                obj.health -= 10
+                self.laser.remove(laser)
         
+    def cooldown(self):
+        if self.cool_down_counter >= self.COOLDOWN:
+            self.cool_down_counter = 0
+            
+        elif self.cool_down_counter > 0:
+            self.cool_down_counter += 1
+    
     def shoot(self):
         if self.cool_down_counter == 0:
-            laser = Laser
+            laser = Laser(self.x, self.y, self.laser_img)
+            self.lasers.append(laser)
+            self.cool_down_counter = 1
+            
     def get_height(self):
         return self.ship_img.get_height()
     
@@ -52,9 +77,9 @@ class Ship:
         
 class Laser:
     def __init__(self, x, y, img):
-        self.x = x;
+        self.x = x - 23;
         self.y = y
-        self.img = img
+        self.img = pygame.transform.scale((img), (80, 40))
         self.mask = pygame.mask.from_surface(self.img)
         
     def draw(self, window):
@@ -64,10 +89,10 @@ class Laser:
         self.y += vel
         
     def off_screen(self, height):
-        return self.y <= height and self.y >= 0 # This will return either true or false, depending on the height argument and the self.y
+        return not(self.y <= height and self.y >= 0) # This will return either true or false, depending on the height argument and the self.y
     
     def collision(self, obj):
-        return collide(obj, self)
+        return collide(obj, self) # This will return true if the pixels of the Laser object and the other object are overlaping
         
 class Player(Ship):
     def __init__(self, x, y, health=100):
@@ -76,6 +101,19 @@ class Player(Ship):
         self.laser_img = YELLO_LASER
         self.mask = pygame.mask.from_surface(self.ship_img)
         self.max_health = health
+        
+    def move_laser(self, vel, objs):
+        self.cooldown()
+        for laser in self.lasers:
+            laser.move(vel)
+            if laser.off_screen(HEIGHT):
+                self.lasers.remove(laser)
+                
+            else:
+                for obj in objs:
+                    if laser.collision(obj):
+                        objs.remove(obj)
+                        self.lasers.remove(laser)
 
 
 class EnemyShip(Ship):
@@ -98,8 +136,10 @@ def collide(object1, object2):
     # using the overlap method (masks)
     offset_x = object2.x - object1.x
     offset_y = object2.y - object1.y
-    return object1.mask.overlap(object2, (offset_x, offset_y)) 
-    # Given two maska the overlap function will check if they are overlaping with each other
+    return object1.mask.overlap(object2.mask, (offset_x, offset_y)) != None
+    # Given two masks the overlap function will check if they are overlaping with each other
+    # if they are not overlaping then it will return None
+    # and that's why when they ARE overlaping it will return true
 
 # Game Loop
 def main():
@@ -114,6 +154,7 @@ def main():
     wave_length = 3
     enemy_vel = 1
     player_vel = 5
+    laser_vel = 10
     ship = Player(200, 433)
     lost = False
     
@@ -133,7 +174,7 @@ def main():
         ship.draw(WIN)
         
         if lost: # if lost == true
-            lost_label = main_font.render("YOU LOST !!", 1 , (255, 255, 255))
+            lost_label = main_font.render("THE EARTH HAS BEEN DESTROYED!! :(", 1 , (255, 255, 255))
             WIN.blit(lost_label, (WIDTH/2 - lost_label.get_width()/2, 250))
         
         pygame.display.update() # Refreshing the window
@@ -195,13 +236,18 @@ def main():
             else:
                 ship.y = HEIGHT - ship.get_height()
                 
+        if keys[pygame.K_SPACE]:
+            ship.shoot()
                 
         for enemy in enemies[:]:
             enemy.move(enemy_vel)
+            enemy.move_laser(laser_vel, ship)
             if enemy.y + enemy.get_height() > HEIGHT:
                 lives -= 1
-                enemies.remove(enemy)
+                if enemy in enemies:
+                    enemies.remove(enemy)
                 
+        ship.move_laser(-laser_vel, enemies)
         
 # Running the program
 if __name__ == "__main__":
