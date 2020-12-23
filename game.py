@@ -40,6 +40,34 @@ class Ship:
     def draw(self, window):
         window.blit(self.ship_img, (self.x, self.y))
         
+    def shoot(self):
+        if self.cool_down_counter == 0:
+            laser = Laser
+    def get_height(self):
+        return self.ship_img.get_height()
+    
+    def get_width(self):
+        return self.ship_img.get_height()
+        
+        
+class Laser:
+    def __init__(self, x, y, img):
+        self.x = x;
+        self.y = y
+        self.img = img
+        self.mask = pygame.mask.from_surface(self.img)
+        
+    def draw(self, window):
+        window.blit(self.img, (self.x, self.y))
+        
+    def move(self, vel): # if vel (velocity) is positive it will move downwards else it will move upwards
+        self.y += vel
+        
+    def off_screen(self, height):
+        return self.y <= height and self.y >= 0 # This will return either true or false, depending on the height argument and the self.y
+    
+    def collision(self, obj):
+        return collide(obj, self)
         
 class Player(Ship):
     def __init__(self, x, y, health=100):
@@ -66,19 +94,28 @@ class EnemyShip(Ship):
     def move(self, vel):
         self.y += vel
 
+def collide(object1, object2):
+    # using the overlap method (masks)
+    offset_x = object2.x - object1.x
+    offset_y = object2.y - object1.y
+    return object1.mask.overlap(object2, (offset_x, offset_y)) 
+    # Given two maska the overlap function will check if they are overlaping with each other
+
 # Game Loop
 def main():
     run = True;
     FPS = 60
     level = 0
+    lost_count = 1
     lives = 5
     main_font = pygame.font.SysFont("comicsans", 33)
     
     enemies = []
-    wave_length = 5
+    wave_length = 3
     enemy_vel = 1
     player_vel = 5
     ship = Player(200, 433)
+    lost = False
     
     clock = pygame.time.Clock()
     
@@ -95,14 +132,30 @@ def main():
             
         ship.draw(WIN)
         
+        if lost: # if lost == true
+            lost_label = main_font.render("YOU LOST !!", 1 , (255, 255, 255))
+            WIN.blit(lost_label, (WIDTH/2 - lost_label.get_width()/2, 250))
+        
         pygame.display.update() # Refreshing the window
         
     while run:
         clock.tick(FPS)
+        redraw_window()
+        
+        if lives <= 0 or ship.health <= 0:
+            lost = True
+            lost_count += 1
+            
+        if lost:
+            if lost_count > FPS * 3: # a 5 second delay
+                run = False
+                
+            else:
+                continue
         
         if len(enemies) == 0:
             level += 1;
-            wave_length += 5
+            wave_length += 3
             
             for i in range(wave_length):
                 enemy = EnemyShip(random.randrange(50, WIDTH-100), random.randrange(-1500 * level / 5, -100), random.choice(["red", "blue", "green"]))
@@ -122,11 +175,11 @@ def main():
                 ship.x = 0
             
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]: # right
-            if ship.x < WIDTH - 33:
+            if ship.x < WIDTH - ship.get_width():
                 ship.x += player_vel
                 
             else:
-                ship.x = WIDTH - 33
+                ship.x = WIDTH - ship.get_width()
                 
         if keys[pygame.K_w] or keys[pygame.K_UP]: # up
             if ship.y > 0:
@@ -136,20 +189,19 @@ def main():
                 ship.y = 0
                 
         if keys[pygame.K_s] or keys[pygame.K_DOWN]: # down
-            if ship.y < HEIGHT - 33:
+            if ship.y < HEIGHT - ship.get_height():
                 ship.y += player_vel
                 
             else:
-                ship.y = HEIGHT - 33
+                ship.y = HEIGHT - ship.get_height()
                 
                 
         for enemy in enemies[:]:
             enemy.move(enemy_vel)
-            if enemy.y + 50 > HEIGHT:
+            if enemy.y + enemy.get_height() > HEIGHT:
                 lives -= 1
                 enemies.remove(enemy)
                 
-        redraw_window()
         
 # Running the program
 if __name__ == "__main__":
