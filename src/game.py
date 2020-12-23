@@ -2,7 +2,9 @@ import pygame
 import os
 import time
 import random
+
 pygame.font.init()
+pygame.mixer.init() # mixer class for playing the audio files
 
 WIDTH = 500
 HEIGHT = 500
@@ -65,6 +67,9 @@ class Ship:
     def shoot(self):
         if self.cool_down_counter == 0:
             laser = Laser(self.x, self.y, self.laser_img)
+            pygame.mixer.music.load(os.path.join("sounds", "shoot.wav")) # Loading the Shoot sound
+            pygame.mixer.music.set_volume(10) # Playing the Shoot sound
+            pygame.mixer.music.play()
             self.lasers.append(laser)
             self.cool_down_counter = 1
             
@@ -160,9 +165,10 @@ def collide(object1, object2):
 def main():
     run = True;
     FPS = 60
+    paused = False # To pause the game in case of a pause call
     level = 0
     lost_count = 1
-    lives = 5
+    ships_passed = 0
     main_font = pygame.font.SysFont("comicsans", 33)
     
     enemies = []
@@ -178,7 +184,7 @@ def main():
     def redraw_window():
         WIN.blit(BG,(0,0))
         # draw text
-        lives_lable = main_font.render(f"Lives : {lives}", 1, (255, 255, 255))
+        lives_lable = main_font.render(f"Escaped : {ships_passed}", 1, (255, 255, 255))
         level_lable = main_font.render(f"Level : {level}", 1, (255, 255, 255))
         WIN.blit(lives_lable, (10, 10))
         WIN.blit(level_lable, (WIDTH - level_lable.get_width() - 10, 10))
@@ -191,14 +197,14 @@ def main():
         if lost: # if lost == true
             lost_label = main_font.render("THE EARTH HAS BEEN DESTROYED!! :(", 1 , (255, 255, 255))
             WIN.blit(lost_label, (WIDTH/2 - lost_label.get_width()/2, 250))
-        
+
         pygame.display.update() # Refreshing the window
         
     while run:
         clock.tick(FPS)
         redraw_window()
         
-        if lives <= 0 or ship.health <= 0:
+        if ships_passed >= 5 or ship.health <= 0:
             lost = True
             lost_count += 1
             
@@ -251,6 +257,13 @@ def main():
             else:
                 ship.y = HEIGHT - ship.get_height() - 20
                 
+        if keys[pygame.K_p]:
+            if paused:
+                paused = False
+                
+            elif paused == False:
+                paused = True
+                
         if keys[pygame.K_SPACE]:
             ship.shoot()
                 
@@ -266,7 +279,7 @@ def main():
                 enemies.remove(enemy)
                 
             elif enemy.y + enemy.get_height() > HEIGHT:
-                lives -= 1
+                ships_passed += 1
                 if enemy in enemies:
                     try:
                         enemies.remove(enemy)
@@ -277,7 +290,45 @@ def main():
             ship.move_laser(-laser_vel, enemies)
         except:
             print("Multiple Shots")
+            
+            
+def main_menu():
+    title_font = pygame.font.SysFont("comicsans", 40)
+    instructions_font = pygame.font.SysFont("comicsans", 20)
+    
+    run = True
+
+    while run:
+        WIN.blit(BG, (0, 0))
+        title_label = title_font.render("Press any key to begin", 1, (255, 255, 255))
+        WIN.blit(title_label, (WIDTH/2 - title_label.get_width()/2, 50))
+        
+        # The Instructions
+        instructions_label1 = instructions_font.render("Use the Arrow Keys or \"WASD\" to Control the Ship", 1, (255, 255, 255))
+        WIN.blit(instructions_label1, (WIDTH/2 - instructions_label1.get_width()/2, 150))
+        
+        instructions_label2 = instructions_font.render("Press Space to Shoot", 1, (255, 255, 255))
+        WIN.blit(instructions_label2, (WIDTH/2 - instructions_label2.get_width()/2, 170))
+        
+        instructions_label3 = instructions_font.render("If 5 Ships bypass you, You Lose", 1, (255,255,255))
+        WIN.blit(instructions_label3, (WIDTH/2 - instructions_label3.get_width()/2, 190))
+        
+        instructions_label4 = instructions_font.render("If You get shot or collide with an enemy Ship, You Lose Health", 1, (255,255,255))
+        WIN.blit(instructions_label4, (WIDTH/2 - instructions_label4.get_width()/2, 210))
+        
+        instructions_label5 = instructions_font.render("The Health Bar at the bottom of you ship will show your Health", 1, (255, 255, 255))
+        WIN.blit(instructions_label5, (WIDTH/2 - instructions_label5.get_width()/2, 230))
+
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                
+            if event.type == pygame.KEYDOWN:
+                main()
+                
+    pygame.quit()
         
 # Running the program
 if __name__ == "__main__":
-    main()
+    main_menu()
