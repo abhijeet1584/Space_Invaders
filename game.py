@@ -53,7 +53,7 @@ class Ship:
                 
             elif laser.collision(obj):
                 obj.health -= 10
-                self.laser.remove(laser)
+                self.lasers.remove(laser)
         
     def cooldown(self):
         if self.cool_down_counter >= self.COOLDOWN:
@@ -114,6 +114,14 @@ class Player(Ship):
                     if laser.collision(obj):
                         objs.remove(obj)
                         self.lasers.remove(laser)
+                        
+    def draw(self, window):
+        super().draw(window)
+        self.healthbar(window)
+                        
+    def healthbar(self, window):
+        pygame.draw.rect(window, (255, 0, 0), (self.x, self.y + self.ship_img.get_height() + 10, self.ship_img.get_width(), 5))
+        pygame.draw.rect(window, (0, 255, 0), (self.x, self.y + self.ship_img.get_height() + 10, self.ship_img.get_width() * (1 - ((self.max_health - self.health) / self.max_health)), 5))
 
 
 class EnemyShip(Ship):
@@ -128,6 +136,13 @@ class EnemyShip(Ship):
         self.ship_img = self.COLOR_MAP[color][0]
         self.laser_img = self.COLOR_MAP[color][1]
         self.mask = pygame.mask.from_surface(self.ship_img)
+        
+    
+    def shoot(self):
+        if self.cool_down_counter == 0:
+            laser = Laser(self.x + 9, self.y, self.laser_img)
+            self.lasers.append(laser)
+            self.cool_down_counter = 1
         
     def move(self, vel):
         self.y += vel
@@ -230,11 +245,11 @@ def main():
                 ship.y = 0
                 
         if keys[pygame.K_s] or keys[pygame.K_DOWN]: # down
-            if ship.y < HEIGHT - ship.get_height():
+            if ship.y < HEIGHT - ship.get_height() - 20:
                 ship.y += player_vel
                 
             else:
-                ship.y = HEIGHT - ship.get_height()
+                ship.y = HEIGHT - ship.get_height() - 20
                 
         if keys[pygame.K_SPACE]:
             ship.shoot()
@@ -242,12 +257,26 @@ def main():
         for enemy in enemies[:]:
             enemy.move(enemy_vel)
             enemy.move_laser(laser_vel, ship)
-            if enemy.y + enemy.get_height() > HEIGHT:
+            
+            if random.randrange(0, 120) == 1: # 50% probablity of the enemy shooting every second
+                enemy.shoot()
+                
+            if collide (enemy, ship):
+                ship.health -= 10
+                enemies.remove(enemy)
+                
+            elif enemy.y + enemy.get_height() > HEIGHT:
                 lives -= 1
                 if enemy in enemies:
-                    enemies.remove(enemy)
-                
-        ship.move_laser(-laser_vel, enemies)
+                    try:
+                        enemies.remove(enemy)
+                    except:
+                        print("Error")
+        
+        try:
+            ship.move_laser(-laser_vel, enemies)
+        except:
+            print("Multiple Shots")
         
 # Running the program
 if __name__ == "__main__":
