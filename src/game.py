@@ -334,4 +334,4 @@ if __name__ == "__main__":
     main_menu()
 
 
-# Setting up github on Debian Workstation
+# Setting up github on Ubuntu Workstation
